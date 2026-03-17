@@ -36,7 +36,4 @@ php artisan serve
 
 The API will be available at `http://127.0.0.1:8000`.
 
-### Project Docs
 
-- `ARCHITECTURE.md` — overall architecture and app blueprint  
-- `backend-blueprint/BACKEND_BLUEPRINT.md` — detailed backend design and implementation plan  
