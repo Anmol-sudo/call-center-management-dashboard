@@ -14,3 +14,14 @@
 body {
     font-family: 'Cairo', ui-sans-serif, system-ui, sans-serif;
 }
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+    transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+    opacity: 0;
+    transform: translateY(6px);
+}

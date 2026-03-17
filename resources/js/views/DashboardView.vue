@@ -208,7 +208,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import {
     SignalIcon,
@@ -220,6 +220,7 @@ import {
 
 const loading = ref(false);
 const data = ref(null);
+const intervalId = ref(null);
 
 const api = axios.create({
     baseURL: 'http://127.0.0.1:8000/api',
@@ -239,7 +240,16 @@ const fetchData = async () => {
     }
 };
 
-onMounted(fetchData);
+onMounted(() => {
+    fetchData();
+    intervalId.value = setInterval(fetchData, 30000);
+});
+
+onUnmounted(() => {
+    if (intervalId.value) {
+        clearInterval(intervalId.value);
+    }
+});
 
 const statusLabel = (status) => {
     switch (status) {

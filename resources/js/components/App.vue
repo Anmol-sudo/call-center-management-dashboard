@@ -134,7 +134,12 @@
                 class="flex-1 overflow-auto"
                 :class="auth.isAuthenticated ? 'p-6' : 'p-0'"
             >
-                <router-view />
+                <Transition
+                    name="page-fade"
+                    mode="out-in"
+                >
+                    <router-view :key="route.fullPath" />
+                </Transition>
             </main>
         </div>
     </div>

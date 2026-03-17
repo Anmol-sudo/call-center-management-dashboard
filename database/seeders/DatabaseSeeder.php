@@ -29,39 +29,60 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Dummy supervisor user
-        $supervisorUser = User::updateOrCreate(
-            ['username' => 'supervisor1'],
+        // Dummy supervisors and employees
+        $supervisors = collect([
             [
-                'name' => 'Supervisor 1',
-                'email' => 'supervisor1@example.com',
-                'role' => 'supervisor',
-                'password' => bcrypt('password123'),
-            ]
-        );
+                'user' => ['username' => 'supervisor1', 'name' => 'Supervisor 1', 'email' => 'supervisor1@example.com'],
+                'extension' => '2001',
+                'employees' => [
+                    ['name' => 'Ali', 'extension' => '3001', 'department' => 'Sales', 'status' => 'online'],
+                    ['name' => 'Mahmoud', 'extension' => '3003', 'department' => 'Sales', 'status' => 'idle'],
+                    ['name' => 'Omar', 'extension' => '3005', 'department' => 'Sales', 'status' => 'on-call'],
+                ],
+            ],
+            [
+                'user' => ['username' => 'supervisor2', 'name' => 'Supervisor 2', 'email' => 'supervisor2@example.com'],
+                'extension' => '2002',
+                'employees' => [
+                    ['name' => 'Sara', 'extension' => '3002', 'department' => 'Support', 'status' => 'on-call'],
+                    ['name' => 'Noor', 'extension' => '3004', 'department' => 'Support', 'status' => 'offline'],
+                    ['name' => 'Laila', 'extension' => '3006', 'department' => 'Support', 'status' => 'online'],
+                ],
+            ],
+        ]);
 
-        $supervisor = Supervisor::updateOrCreate(
-            ['user_id' => $supervisorUser->id],
-            ['extension' => '2001']
-        );
+        $allEmployees = collect();
 
-        // Dummy employees
-        $employees = collect([
-            ['name' => 'Ali', 'extension' => '3001', 'department' => 'Sales', 'status' => 'online'],
-            ['name' => 'Sara', 'extension' => '3002', 'department' => 'Support', 'status' => 'on-call'],
-            ['name' => 'Mahmoud', 'extension' => '3003', 'department' => 'Sales', 'status' => 'idle'],
-            ['name' => 'Noor', 'extension' => '3004', 'department' => 'Support', 'status' => 'offline'],
-        ])->map(function ($data) use ($supervisor) {
-            return Employee::updateOrCreate(
-                ['extension' => $data['extension']],
+        $supervisors->each(function ($sup) use (&$allEmployees) {
+            $user = User::updateOrCreate(
+                ['username' => $sup['user']['username']],
                 [
-                    'name' => $data['name'],
-                    'department' => $data['department'],
-                    'supervisor_id' => $supervisor->id,
-                    'status' => $data['status'],
-                    'idle_since' => null,
+                    'name' => $sup['user']['name'],
+                    'email' => $sup['user']['email'],
+                    'role' => 'supervisor',
+                    'password' => bcrypt('password123'),
                 ]
             );
+
+            $supervisor = Supervisor::updateOrCreate(
+                ['user_id' => $user->id],
+                ['extension' => $sup['extension']]
+            );
+
+            $employees = collect($sup['employees'])->map(function ($data) use ($supervisor) {
+                return Employee::updateOrCreate(
+                    ['extension' => $data['extension']],
+                    [
+                        'name' => $data['name'],
+                        'department' => $data['department'],
+                        'supervisor_id' => $supervisor->id,
+                        'status' => $data['status'],
+                        'idle_since' => null,
+                    ]
+                );
+            });
+
+            $allEmployees = $allEmployees->merge($employees);
         });
 
         // Dummy phone lines
@@ -76,32 +97,34 @@ class DatabaseSeeder extends Seeder
         );
 
         // Attach employees to lines
-        foreach ($employees as $employee) {
+        foreach ($allEmployees as $employee) {
             $employee->phoneLines()->syncWithoutDetaching(
                 $employee->department === 'Sales' ? [$salesLine->id] : [$supportLine->id]
             );
         }
 
-        // Dummy call records (last few hours)
+        // Dummy call records (last few days)
         $now = now();
-        foreach ($employees as $index => $employee) {
-            for ($i = 0; $i < 5; $i++) {
-                $started = $now->copy()->subMinutes(rand(10, 240));
-                $duration = rand(30, 600);
-                $ended = $started->copy()->addSeconds($duration);
+        foreach ($allEmployees as $index => $employee) {
+            for ($d = 0; $d < 3; $d++) {
+                for ($i = 0; $i < 8; $i++) {
+                    $started = $now->copy()->subDays($d)->setTime(rand(8, 20), rand(0, 59));
+                    $duration = rand(30, 900);
+                    $ended = $started->copy()->addSeconds($duration);
 
-                CallRecord::create([
-                    'employee_id' => $employee->id,
-                    'phone_line_id' => $employee->department === 'Sales' ? $salesLine->id : $supportLine->id,
-                    'direction' => $i % 2 === 0 ? 'incoming' : 'outgoing',
-                    'status' => $i % 4 === 0 ? 'missed' : 'answered',
-                    'started_at' => $started,
-                    'ended_at' => $ended,
-                    'duration_seconds' => $duration,
-                    'caller' => '+2010000000' . $i,
-                    'callee' => $employee->extension,
-                    'raw_cdr_id' => 'CDR-' . $employee->id . '-' . $i,
-                ]);
+                    CallRecord::create([
+                        'employee_id' => $employee->id,
+                        'phone_line_id' => $employee->department === 'Sales' ? $salesLine->id : $supportLine->id,
+                        'direction' => $i % 2 === 0 ? 'incoming' : 'outgoing',
+                        'status' => $i % 5 === 0 ? 'missed' : 'answered',
+                        'started_at' => $started,
+                        'ended_at' => $ended,
+                        'duration_seconds' => $duration,
+                        'caller' => '+201000' . rand(1000, 9999),
+                        'callee' => $employee->extension,
+                        'raw_cdr_id' => 'CDR-' . $employee->id . '-' . $d . '-' . $i,
+                    ]);
+                }
             }
         }
     }
